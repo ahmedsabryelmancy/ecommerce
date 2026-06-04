@@ -11,6 +11,7 @@ const sharp = require('sharp');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 
+
 // تهيئة Cloudinary
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -59,6 +60,8 @@ const upload = multer({ storage: storage });
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('✅ تم الاتصال بـ MongoDB بنجاح!'))
     .catch((err) => console.error('❌ فشل الاتصال بـ MongoDB:', err));
+
+   
 
 // تعريف هيكل المنتج (Schema)
 const productSchema = new mongoose.Schema({
