@@ -14,10 +14,11 @@ export function ProductPage() {
   const { isSaved, toggleSavedItem } = useWishlist();
   const { productId } = useParams();
   const { products, loading, error } = useProducts();
-  const product = products.find((item) => String(item.id) === productId);
+  // Support both frontend 'id' and backend '_id' as per CLAUDE.md mismatch note
+  const product = products.find((item) => String(item._id || item.id) === productId);
   const relatedProducts = product
     ? products
-        .filter((item) => item.id !== product.id && item.catetory === product.catetory)
+        .filter((item) => (item._id || item.id) !== (product._id || product.id) && (item.category || item.catetory) === (product.category || product.catetory))
         .slice(0, 4)
     : [];
   const discount = product ? getDiscountPercent(product) : null;
@@ -62,7 +63,7 @@ export function ProductPage() {
         <nav className="product_breadcrumb" aria-label="Breadcrumb">
           <Link to="/">Home</Link>
           <span>/</span>
-          <span>{product.catetory}</span>
+          <span>{product.category || product.catetory}</span>
           <span>/</span>
           <span>{product.name}</span>
         </nav>
@@ -71,7 +72,7 @@ export function ProductPage() {
           <div className="product_gallery_card">
             {discount ? <span className="product_badge">Save {discount}%</span> : null}
             <div className="product_image_wrap">
-              <img src={getProductImagePath(product.img)} alt={product.name} />
+              <img src={getProductImagePath(product.image || product.img)} alt={product.name} />
             </div>
 
             <div className="product_glance_grid">
@@ -91,7 +92,7 @@ export function ProductPage() {
           </div>
 
           <div className="product_summary_card">
-            <p className="product_eyebrow">{product.catetory}</p>
+            <p className="product_eyebrow">{product.category || product.catetory}</p>
             <h1>{product.name}</h1>
 
             <div className="product_rating_row">
@@ -102,8 +103,8 @@ export function ProductPage() {
                 <i className="fa-solid fa-star" />
                 <i className="fa-solid fa-star" />
               </div>
-              <span>4.9 rating</span>
-              <span>128 reviews</span>
+              <span>{product.rating || 4.9} rating</span>
+              <span>{product.numReviews || 128} reviews</span>
             </div>
 
             <div className="product_price_panel">
@@ -162,7 +163,7 @@ export function ProductPage() {
             <div className="product_meta_strip">
               <div>
                 <span>SKU</span>
-                <strong>AHM-{product.id.toString().padStart(4, "0")}</strong>
+                <strong>AHM-{String(product.id).padStart(4, "0")}</strong>
               </div>
               <div>
                 <span>In cart</span>
