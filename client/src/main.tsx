@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import "./ahmed.css";
+import "./styles/ahmed.css";
 import "./styles/auth.css";
 import "./styles/cart.css";
 import "./styles/footer.css";
