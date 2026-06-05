@@ -356,7 +356,7 @@ header .bottom_header .nav_links li.active a{
      }
      .banners_4 .container .box{
         width: 24%;
-        background: url(./img/bg_banner3.jpg);
+        background: url(/img/bg_banner3.jpg);
         background-size: cover;
         background-position: center;
         border-radius: 5px;

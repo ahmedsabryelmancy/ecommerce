@@ -1,5 +1,5 @@
 {
   "buildCommand": "cd client && npm install && ./node_modules/.bin/tsc -b && ./node_modules/.bin/vite build",
   "outputDirectory": "client/dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/((?!img/|assets/|manifest\\.json|products\\.json).*)", "destination": "/index.html" }]
 }
