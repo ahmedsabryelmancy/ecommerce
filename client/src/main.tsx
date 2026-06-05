@@ -10,7 +10,6 @@ import "./styles/page-loader.css";
 import "./styles/react-overrides.css";
 import "./styles/product-page.css";
 import "./styles/search.css";
-import "./styles/ahmed.css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
