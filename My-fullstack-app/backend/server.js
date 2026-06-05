@@ -55,9 +55,9 @@ try {
 // سنستخدم MemoryStorage بدلاً من DiskStorage لمعالجتها قبل الحفظ
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-
 // الاتصال بقاعدة بيانات MongoDB
-mongoose.connect(process.env.MONGO_URI)
+
+mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ تم الاتصال بـ MongoDB بنجاح!'))
     .catch((err) => console.error('❌ فشل الاتصال بـ MongoDB:', err));
 
