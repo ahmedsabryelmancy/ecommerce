@@ -14,3 +14,5 @@ yarn-error.log*
 # Build artifacts
 client/dist/
 server/dist/
+client/vite.config.js
+client/vite.config.d.ts
