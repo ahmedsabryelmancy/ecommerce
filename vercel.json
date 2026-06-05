@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm install --prefix client && npm run build --prefix client",
+  "buildCommand": "cd client && npm install && ./node_modules/.bin/tsc -b && ./node_modules/.bin/vite build",
   "outputDirectory": "client/dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
