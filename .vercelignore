@@ -1,10 +1,11 @@
-server/
+node_modules/
 client/node_modules/
-My-fullstack-app/
-api/
-Js/
-sample/
+server/node_modules/
+/My-fullstack-app/
+/Js/
+/sample/
+/uploads/
 /img/
-ahmed.css
-Code gs.txt
-render.yaml
+/ahmed.css
+/Code gs.txt
+/render.yaml
