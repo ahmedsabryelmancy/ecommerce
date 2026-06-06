@@ -1,10 +1,14 @@
-server/
-client/node_modules/
-My-fullstack-app/
-api/
-Js/
-sample/
-img/
-ahmed.css
-Code gs.txt
-render.yaml
+# Patterns are anchored with a leading "/" so they only exclude top-level repo
+# folders. Without the slash, e.g. "img/" also matched client/public/img and
+# "api/" matched client/api, stripping the product images and serverless
+# functions from the Vercel build (Root Directory = client).
+/server/
+/client/node_modules/
+/My-fullstack-app/
+/api/
+/Js/
+/sample/
+/img/
+/ahmed.css
+/Code gs.txt
+/render.yaml
