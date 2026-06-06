@@ -64,13 +64,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
-  // Load cart when auth state changes
+  // Load cart when auth state changes.
+  // On login/signup, any items the user added as a guest are merged into their
+  // account cart (then cleared from localStorage) so nothing is lost.
   useEffect(() => {
     if (user) {
-      api
-        .get<CartApiResponse>("/api/cart")
+      const guestItems = readGuestCart();
+
+      const loadAccountCart = guestItems.length
+        ? api.post<CartApiResponse>("/api/cart/merge", {
+            items: guestItems.map((item) => ({
+              productId: item.product.id,
+              quantity: item.quantity,
+            })),
+          })
+        : api.get<CartApiResponse>("/api/cart");
+
+      loadAccountCart
         .then((data) => {
-          if (data.success) setCartItems(fromBackend(data.items));
+          if (data.success) {
+            setCartItems(fromBackend(data.items));
+            // Guest cart has been absorbed into the account — clear it.
+            localStorage.removeItem(GUEST_CART_KEY);
+          }
         })
         .catch(() => {
           // Backend unreachable — fall back to guest cart

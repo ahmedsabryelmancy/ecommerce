@@ -105,6 +105,74 @@ router.post("/", async (req: AuthRequest, res: Response): Promise<void> => {
   }
 });
 
+// POST /api/cart/merge  — merge a guest cart (from localStorage) into the user's cart.
+// Body: { items: [{ productId: number, quantity: number }] }
+// Quantities are added on top of whatever is already in the account cart.
+router.post("/merge", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { items } = req.body as {
+      items?: { productId: number; quantity: number }[];
+    };
+
+    if (!Array.isArray(items) || items.length === 0) {
+      // Nothing to merge — just return the current cart.
+      const existing = await Cart.findOne({ user: req.userId }).lean();
+      const list = existing?.items ?? [];
+      const count = list.reduce((sum, item) => sum + item.quantity, 0);
+      const total = list.reduce(
+        (sum, item) => sum + item.productSnapshot.price * item.quantity,
+        0
+      );
+      res.json({ success: true, items: list, count, total });
+      return;
+    }
+
+    let cart = await Cart.findOne({ user: req.userId });
+    if (!cart) {
+      cart = await Cart.create({ user: req.userId, items: [] });
+    }
+
+    for (const incoming of items) {
+      const quantity = Math.max(1, Math.floor(Number(incoming.quantity) || 1));
+      const product = await Product.findOne({ id: incoming.productId }).lean();
+      if (!product) continue; // skip unknown products instead of failing the whole merge
+
+      const existing = cart.items.find(
+        (item) => item.productSnapshot.id === incoming.productId
+      );
+
+      if (existing) {
+        existing.quantity += quantity;
+      } else {
+        cart.items.push({
+          product: product._id,
+          productSnapshot: {
+            id: product.id,
+            name: product.name,
+            img: product.img,
+            price: product.price,
+            old_price: product.old_price,
+            catetory: product.catetory,
+          },
+          quantity,
+        });
+      }
+    }
+
+    await cart.save();
+
+    const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+    const total = cart.items.reduce(
+      (sum, item) => sum + item.productSnapshot.price * item.quantity,
+      0
+    );
+
+    res.json({ success: true, items: cart.items, count, total });
+  } catch {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
 // PATCH /api/cart/:productId  — set exact quantity (0 = remove)
 router.patch("/:productId", async (req: AuthRequest, res: Response): Promise<void> => {
   try {
