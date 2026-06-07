@@ -1,16 +1,20 @@
 import { FormEvent, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, user } = useAuth();
   const [formState, setFormState] = useState({ email: "", password: "" });
   const [feedback, setFeedback] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Honor a post-login destination (e.g. guest clicking "Log in to checkout").
+  const redirectTo = (location.state as { redirectTo?: string } | null)?.redirectTo ?? "/";
+
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -22,7 +26,7 @@ export function LoginPage() {
     setFeedback({ type: result.success ? "success" : "error", message: result.message });
 
     if (result.success) {
-      navigate("/");
+      navigate(redirectTo);
     } else {
       setIsSubmitting(false);
     }

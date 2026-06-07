@@ -839,6 +839,18 @@ header .bottom_header .nav_links li.active a{
   margin-bottom: 14px;
 }
 
+.cart_checkout_button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cart_checkout_error {
+  margin: 0 0 14px;
+  color: #c0392b;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 .cart_continue_link {
   display: inline-flex;
   justify-content: center;
