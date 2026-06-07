@@ -3,6 +3,8 @@ import { AppShell } from "./components/layout/AppShell";
 import { CollectionPage } from "./pages/CollectionPage";
 import { ContentPage } from "./pages/ContentPage";
 import { CartPage } from "./pages/CartPage";
+import { CheckoutPage } from "./pages/CheckoutPage";
+import { CheckoutCompletePage } from "./pages/CheckoutCompletePage";
 import { AboutPage } from "./pages/AboutPage";
 import { AccessoriesPage } from "./pages/AccessoriesPage";
 import { ContactPage } from "./pages/ContactPage";
@@ -23,6 +25,8 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route index element={<HomePage />} />
           <Route path="cart" element={<CartPage />} />
+          <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="checkout/complete" element={<CheckoutCompletePage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="saved-items" element={<SavedItemsPage />} />
           <Route path="search" element={<SearchPage />} />

@@ -8,6 +8,7 @@ import productRoutes from "./routes/products";
 import cartRoutes from "./routes/cart";
 import wishlistRoutes from "./routes/wishlist";
 import orderRoutes from "./routes/orders";
+import paymentRoutes from "./routes/payments";
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // ── API 404 (unmatched /api/* only) ──────────────────────
 app.use("/api", (_req, res) => {

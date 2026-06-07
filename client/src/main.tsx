@@ -4,6 +4,7 @@ import App from "./App";
 import "swiper/css";
 import "./styles/auth.css";
 import "./styles/cart.css";
+import "./styles/checkout.css";
 import "./styles/footer.css";
 import "./styles/navigation-pages.css";
 import "./styles/page-loader.css";

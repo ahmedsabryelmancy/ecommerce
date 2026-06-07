@@ -1,23 +1,7 @@
-import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { api } from "../lib/api";
 import { getProductImagePath } from "../features/products/hooks/useProducts";
-
-// Shape of the order returned by POST /api/orders
-type PlacedOrder = {
-  _id: string;
-  total: number;
-  status: string;
-  items: { productId: number; name: string; quantity: number; price: number }[];
-};
-
-type OrderApiResponse = {
-  success: boolean;
-  order: PlacedOrder;
-  message?: string;
-};
 
 export function CartPage() {
   const {
@@ -31,59 +15,16 @@ export function CartPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [placing, setPlacing] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null);
-
-  const handleCheckout = async () => {
-    // Orders require an authenticated user. Guests are sent to login first;
-    // their cart persists in localStorage and merges on login.
+  const handleCheckout = () => {
+    // Checkout (payment selection + order creation) lives on /checkout, which
+    // requires an account. Guests log in first; their cart persists in
+    // localStorage and merges on login.
     if (!user) {
-      navigate("/login", { state: { redirectTo: "/cart" } });
+      navigate("/login", { state: { redirectTo: "/checkout" } });
       return;
     }
-
-    setPlacing(true);
-    setCheckoutError(null);
-
-    try {
-      const data = await api.post<OrderApiResponse>("/api/orders");
-      if (data.success) {
-        setPlacedOrder(data.order);
-        clearCart(); // backend already emptied the cart; sync local state
-      } else {
-        setCheckoutError(data.message ?? "Could not place your order.");
-      }
-    } catch (err) {
-      setCheckoutError(
-        err instanceof Error ? err.message : "Could not place your order.",
-      );
-    } finally {
-      setPlacing(false);
-    }
+    navigate("/checkout");
   };
-
-  // Order confirmation — shown after a successful checkout.
-  if (placedOrder) {
-    return (
-      <section className="cart_page">
-        <div className="container">
-          <div className="cart_empty_state">
-            <p className="cart_page_eyebrow">Order confirmed</p>
-            <h1>Thank you for your order!</h1>
-            <p>
-              Order <strong>#{placedOrder._id.slice(-8).toUpperCase()}</strong> has been
-              placed for <strong>${placedOrder.total}</strong>. Status:{" "}
-              {placedOrder.status}.
-            </p>
-            <Link to="/" className="btn">
-              Continue shopping
-            </Link>
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   if (!cartItems.length) {
     return (
@@ -198,20 +139,9 @@ export function CartPage() {
               type="button"
               className="btn cart_checkout_button"
               onClick={handleCheckout}
-              disabled={placing}
             >
-              {placing
-                ? "Placing order…"
-                : user
-                  ? "Proceed to checkout"
-                  : "Log in to checkout"}
+              {user ? "Proceed to checkout" : "Log in to checkout"}
             </button>
-
-            {checkoutError ? (
-              <p className="cart_checkout_error" role="alert">
-                {checkoutError}
-              </p>
-            ) : null}
 
             <Link to="/" className="cart_continue_link">
               Continue shopping
