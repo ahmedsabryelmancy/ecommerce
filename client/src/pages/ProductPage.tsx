@@ -14,11 +14,11 @@ export function ProductPage() {
   const { isSaved, toggleSavedItem } = useWishlist();
   const { productId } = useParams();
   const { products, loading, error } = useProducts();
-  // Support both frontend 'id' and backend '_id' as per CLAUDE.md mismatch note
-  const product = products.find((item) => String(item._id || item.id) === productId);
+  // Products are keyed by their numeric `id` (links use product.id everywhere).
+  const product = products.find((item) => String(item.id) === productId);
   const relatedProducts = product
     ? products
-        .filter((item) => (item._id || item.id) !== (product._id || product.id) && (item.category || item.catetory) === (product.category || product.catetory))
+        .filter((item) => item.id !== product.id && item.catetory === product.catetory)
         .slice(0, 4)
     : [];
   const discount = product ? getDiscountPercent(product) : null;
@@ -63,7 +63,7 @@ export function ProductPage() {
         <nav className="product_breadcrumb" aria-label="Breadcrumb">
           <Link to="/">Home</Link>
           <span>/</span>
-          <span>{product.category || product.catetory}</span>
+          <span>{product.catetory}</span>
           <span>/</span>
           <span>{product.name}</span>
         </nav>
@@ -72,7 +72,7 @@ export function ProductPage() {
           <div className="product_gallery_card">
             {discount ? <span className="product_badge">Save {discount}%</span> : null}
             <div className="product_image_wrap">
-              <img src={getProductImagePath(product.image || product.img)} alt={product.name} />
+              <img src={getProductImagePath(product.img)} alt={product.name} />
             </div>
 
             <div className="product_glance_grid">
@@ -92,7 +92,7 @@ export function ProductPage() {
           </div>
 
           <div className="product_summary_card">
-            <p className="product_eyebrow">{product.category || product.catetory}</p>
+            <p className="product_eyebrow">{product.catetory}</p>
             <h1>{product.name}</h1>
 
             <div className="product_rating_row">
