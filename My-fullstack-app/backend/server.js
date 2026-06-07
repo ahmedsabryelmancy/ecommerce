@@ -7,7 +7,6 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
-const sharp = require('sharp');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 
@@ -31,14 +30,17 @@ app.use(express.json());
 // إضافة التخزين المؤقت (Caching) لمدة يوم واحد لتحسين السرعة
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { maxAge: '1d' }));
 
-// إعداد تقديم ملفات React في الإنتاج
-if (process.env.NODE_ENV === 'production') {
+// إعداد تقديم ملفات React في الإنتاج (للنشر الموحَّد مثل Render فقط).
+// على Vercel، الواجهة تُنشر بشكل منفصل، كما أن express.static لا يصل إلى
+// ../frontend/dist داخل حزمة الـ serverless، لذا نتخطى هذا الجزء.
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
     // تحديد مجلد الـ Build الخاص بـ Vite
     const frontendPath = path.join(__dirname, '../frontend/dist');
     app.use(express.static(frontendPath));
 
-    // أي مسار لا يبدأ بـ /api يتم توجيهه إلى index.html الخاص بـ React
-    app.get('*', (req, res, next) => {
+    // أي مسار لا يبدأ بـ /api يتم توجيهه إلى index.html الخاص بـ React.
+    // نستخدم app.use بدون نمط مسار لأن Express 5 لا يقبل '*' كنص.
+    app.use((req, res, next) => {
         if (req.path.startsWith('/api')) return next();
         res.sendFile(path.join(frontendPath, 'index.html'));
     });
@@ -55,13 +57,59 @@ try {
 // سنستخدم MemoryStorage بدلاً من DiskStorage لمعالجتها قبل الحفظ
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-// الاتصال بقاعدة بيانات MongoDB
+// ── الاتصال بقاعدة بيانات MongoDB (متوافق مع بيئة Vercel الـ serverless) ──
+// نخزّن الاتصال (والوعد) على global حتى تعيد استدعاءات الدوال المتتالية
+// استخدام نفس الاتصال بدلاً من فتح اتصال جديد في كل cold start، مما يمنع
+// استنفاد عدد اتصالات MongoDB Atlas.
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('✅ تم الاتصال بـ MongoDB بنجاح!'))
-    .catch((err) => console.error('❌ فشل الاتصال بـ MongoDB:', err));
+let cached = global._mongooseCache;
+if (!cached) {
+    cached = global._mongooseCache = { conn: null, promise: null };
+}
 
-   
+async function connectDB() {
+    if (cached.conn) return cached.conn;
+
+    if (!MONGO_URI) {
+        throw new Error('MONGO_URI (أو MONGODB_URI) غير مُعرَّف في متغيرات البيئة.');
+    }
+
+    if (!cached.promise) {
+        cached.promise = mongoose
+            .connect(MONGO_URI, {
+                // أوقف التخزين المؤقت للأوامر حتى تفشل الطلبات بسرعة بدلاً من
+                // الانتظار حتى انتهاء المهلة عند عدم توفر الاتصال.
+                bufferCommands: false,
+                serverSelectionTimeoutMS: 10000,
+            })
+            .then((m) => {
+                console.log('✅ تم الاتصال بـ MongoDB بنجاح!');
+                return m;
+            })
+            .catch((err) => {
+                // أعد ضبط الوعد حتى تتمكن الطلبات اللاحقة من إعادة المحاولة.
+                cached.promise = null;
+                console.error('❌ فشل الاتصال بـ MongoDB:', err.message);
+                throw err;
+            });
+    }
+
+    cached.conn = await cached.promise;
+    return cached.conn;
+}
+
+// تأكد من جاهزية الاتصال قبل تنفيذ أي معالِج يستخدم قاعدة البيانات.
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (err) {
+        res.status(503).json({ error: 'قاعدة البيانات غير متاحة مؤقتاً' });
+    }
+});
+
+
 
 // تعريف هيكل المنتج (Schema)
 const productSchema = new mongoose.Schema({
@@ -81,7 +129,8 @@ const Product = mongoose.model('Product', productSchema);
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true }
+    password: { type: String, required: true },
+    isAdmin: { type: Boolean, default: false } // صلاحيات المسؤول لإدارة المنتجات
 });
 const User = mongoose.model('User', userSchema);
 
@@ -99,6 +148,21 @@ const verifyToken = (req, res, next) => {
     }
 };
 
+// Middleware للتحقق من صلاحيات المسؤول (يُستخدم بعد verifyToken).
+// نتحقق من قاعدة البيانات وليس من التوكن فقط، حتى يُطبَّق سحب الصلاحية فوراً
+// بدل الانتظار حتى انتهاء صلاحية التوكن.
+const requireAdmin = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user?.id).select('isAdmin');
+        if (!user || !user.isAdmin) {
+            return res.status(403).json({ message: "هذه العملية متاحة للمسؤول فقط" });
+        }
+        next();
+    } catch (err) {
+        res.status(500).json({ error: "حدث خطأ أثناء التحقق من الصلاحيات" });
+    }
+};
+
 app.get('/api/products', async (req, res) => {
     try {
         const products = await Product.find().sort({ createdAt: -1 }); 
@@ -109,7 +173,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 // إضافة منتج جديد
-app.post('/api/products', verifyToken, upload.single('image'), async (req, res) => {
+app.post('/api/products', verifyToken, requireAdmin, upload.single('image'), async (req, res) => {
     try {
         const price = Number(req.body.price);
         if (!req.body.name || isNaN(price) || price <= 0) {
@@ -147,7 +211,7 @@ app.post('/api/products', verifyToken, upload.single('image'), async (req, res) 
 });
 
 // حذف منتج
-app.delete('/api/products/:id', verifyToken, async (req, res) => {
+app.delete('/api/products/:id', verifyToken, requireAdmin, async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
         if (!product) return res.status(404).json({ message: "المنتج غير موجود" });
@@ -166,7 +230,7 @@ app.delete('/api/products/:id', verifyToken, async (req, res) => {
 });
 
 // تحديث منتج موجود
-app.put('/api/products/:id', verifyToken, upload.single('image'), async (req, res) => {
+app.put('/api/products/:id', verifyToken, requireAdmin, upload.single('image'), async (req, res) => {
     try {
         const { name, price } = req.body;
         const product = await Product.findById(req.params.id);
@@ -229,7 +293,7 @@ app.post('/api/products/:id/rate', async (req, res) => {
 });
 
 // مسار لملء قاعدة البيانات بمنتجات حقيقية من Unsplash
-app.post('/api/seed', verifyToken, async (req, res) => {
+app.post('/api/seed', verifyToken, requireAdmin, async (req, res) => {
     try {
         const seedProducts = [
             { 
@@ -284,8 +348,8 @@ app.post('/api/login', async (req, res) => {
         const validPass = await bcrypt.compare(password, user.password);
         if (!validPass) return res.status(400).json({ message: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
 
-        const token = jwt.sign({ id: user._id, name: user.name, email: user.email }, SECRET_KEY, { expiresIn: '7d' });
-        res.json({ token, user: { name: user.name, email: user.email } });
+        const token = jwt.sign({ id: user._id, name: user.name, email: user.email, isAdmin: user.isAdmin }, SECRET_KEY, { expiresIn: '7d' });
+        res.json({ token, user: { name: user.name, email: user.email, isAdmin: user.isAdmin } });
     } catch (err) {
         res.status(500).json({ error: "حدث خطأ أثناء تسجيل الدخول" });
     }
@@ -305,8 +369,8 @@ app.post('/api/register', async (req, res) => {
         const user = new User({ name, email: email.toLowerCase(), password: hashedPassword });
         await user.save();
 
-        const token = jwt.sign({ id: user._id, name: user.name, email: user.email }, SECRET_KEY, { expiresIn: '7d' });
-        res.json({ token, user: { name: user.name, email: user.email }, message: "تم إنشاء الحساب بنجاح" });
+        const token = jwt.sign({ id: user._id, name: user.name, email: user.email, isAdmin: user.isAdmin }, SECRET_KEY, { expiresIn: '7d' });
+        res.json({ token, user: { name: user.name, email: user.email, isAdmin: user.isAdmin }, message: "تم إنشاء الحساب بنجاح" });
     } catch (err) {
         res.status(500).json({ error: "حدث خطأ أثناء التسجيل" });
     }
